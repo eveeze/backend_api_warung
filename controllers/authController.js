@@ -144,12 +144,9 @@ exports.login = async (req, res) => {
     // Check if the entered password matches the stored hashed password
     const isPasswordMatch = await user.matchPassword(password);
     if (!isPasswordMatch) {
-      // Increment failed login attempts
       user.failedLoginAttempts += 1;
-
       if (user.failedLoginAttempts >= 5) {
-        // Lock the user for 15 minutes
-        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
         await user.save();
         return res.status(403).json({
           message:
@@ -161,28 +158,17 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid password" });
     }
 
-    // Reset failed attempts on successful password validation
+    // Reset failed attempts and store user data in the session
     user.failedLoginAttempts = 0;
     user.lockUntil = undefined;
-
-    // Generate and send OTP for login verification
-    const otp = generateOTP();
-    const otpExpiry = new Date();
-    otpExpiry.setMinutes(otpExpiry.getMinutes() + 5);
-
-    user.otp = {
-      code: otp,
-      expiresAt: otpExpiry,
-    };
     await user.save();
 
-    // Send OTP via WhatsApp
-    await sendWhatsAppOTP(phone, otp);
+    req.session.userId = user._id;
+    req.session.isVerified = user.isVerified;
 
-    res.status(200).json({
-      message: "OTP sent for login verification",
-      name: user.name,
-    });
+    res
+      .status(200)
+      .json({ message: "Logged in successfully", name: user.name });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Server error" });
@@ -193,38 +179,27 @@ exports.verifyLoginOTP = async (req, res) => {
   try {
     const { phone, password, otp } = req.body;
 
-    // Find the user by phone number
     const user = await User.findOne({ phone });
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // Verify password again
     const isPasswordMatch = await user.matchPassword(password);
     if (!isPasswordMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Check if the OTP matches and is still valid
     if (user.otp.code !== otp || user.otp.expiresAt < new Date()) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    // Clear the OTP
     user.otp = undefined;
     await user.save();
 
-    // Generate a JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    req.session.userId = user._id;
+    req.session.isVerified = true;
 
-    res.status(200).json({
-      message: "Login successful",
-      token,
-      isVerified: true,
-      name: user.name,
-    });
+    res.status(200).json({ message: "Login successful", name: user.name });
   } catch (error) {
     console.error("Login OTP verification error:", error);
     res.status(500).json({ message: "Server error" });
@@ -277,6 +252,22 @@ exports.getUserProfile = async (req, res) => {
     res.status(200).json(user);
   } catch (error) {
     console.error("Error fetching user profile:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Server error during logout" });
+      }
+      res.clearCookie("connect.sid"); 
+      res.status(200).json({ message: "Logout successful" });
+    });
+  } catch (error) {
+    console.error("Error in logout:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
