@@ -5,8 +5,17 @@ const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     stock: { type: Number, required: true },
-    producerPrice: { type: Number, required: true }, // Harga produsen
-    salePrice: { type: Number, required: true }, // Harga jual
+    minStock: { type: Number, required: true }, // Minimum stock level
+    producerPrice: { type: Number, required: true },
+    salePrice: { type: Number, required: true },
+    description: { type: String },
+    status: { type: String, enum: ["active", "inactive"], default: "active" },
+    imageUrl: { type: String },
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
   },
   { timestamps: true }
 );
