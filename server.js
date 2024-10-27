@@ -6,11 +6,13 @@ const session = require("express-session");
 const MongoStore = require("connect-mongo");
 require("dotenv").config();
 const connectDB = require("./config/db");
+const errorHandler = require("./middleware/errorHandler");
 
 const authRoutes = require("./routes/authRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
 const productRoutes = require("./routes/productRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 
@@ -38,7 +40,12 @@ app.use(
       mongoUrl: process.env.MONGODB_URI,
       collectionName: "sessions",
     }),
-    cookie: { secure: false, maxAge: 1000 * 60 * 60 }, // Set maxAge as needed
+    cookie: {
+      secure: false,
+      maxAge: 1000 * 60 * 60,
+      httpOnly: true,
+      sameSite: "strict",
+    }, // Set maxAge as needed
   })
 );
 
@@ -47,6 +54,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/transaction", transactionRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/reports", reportRoutes);
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
