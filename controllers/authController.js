@@ -1,7 +1,6 @@
 // backend/controllers/authController.js
 const User = require("../models/User");
 const { generateOTP, sendWhatsAppOTP } = require("../utils/fonnte");
-const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
 exports.register = async (req, res) => {
@@ -45,7 +44,9 @@ exports.register = async (req, res) => {
     // Send OTP via WhatsApp using Fonnte
     await sendWhatsAppOTP(phone, otp);
 
-    res.status(200).json({ message: "OTP sent successfully" });
+    res
+      .status(200)
+      .json({ message: "OTP sent successfully. Please verify OTP." });
   } catch (error) {
     console.error("Registration error:", error);
     res.status(500).json({ message: "Server error" });
@@ -73,12 +74,10 @@ exports.verifyOTP = async (req, res) => {
     user.otp = undefined; // Clear the OTP once verified
     await user.save();
 
-    // Generate a JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
-
-    res.status(200).json({ message: "User verified successfully", token });
+    // Return success message to redirect user to the login page in Flutter
+    res
+      .status(200)
+      .json({ message: "User verified successfully. Please log in." });
   } catch (error) {
     console.error("Error in verifying OTP:", error);
     res.status(500).json({ message: "Server error" });
@@ -263,7 +262,7 @@ exports.logout = async (req, res) => {
         console.error("Logout error:", err);
         return res.status(500).json({ message: "Server error during logout" });
       }
-      res.clearCookie("connect.sid"); 
+      res.clearCookie("connect.sid");
       res.status(200).json({ message: "Logout successful" });
     });
   } catch (error) {
