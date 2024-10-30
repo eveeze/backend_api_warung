@@ -1,4 +1,4 @@
-// backend/controllers/authController.js
+// /controllers/authController.js
 const User = require("../models/User");
 const { generateOTP, sendWhatsAppOTP } = require("../utils/fonnte");
 const jwt = require("jsonwebtoken");
