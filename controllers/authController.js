@@ -2,24 +2,20 @@
 const User = require("../models/User");
 const { generateOTP, sendWhatsAppOTP } = require("../utils/fonnte");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
-
+const BlacklistedToken = require("../models/BlacklistedToken");
 exports.register = async (req, res) => {
   try {
     const { phone, name, password } = req.body;
 
-    // Check if user already exists
     let user = await User.findOne({ phone });
     if (user && user.isVerified) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Generate OTP
     const otp = generateOTP();
     const otpExpiry = new Date();
-    otpExpiry.setMinutes(otpExpiry.getMinutes() + 5); // OTP expires in 5 minutes
+    otpExpiry.setMinutes(otpExpiry.getMinutes() + 5);
 
-    // Create or update user
     if (!user) {
       user = new User({
         phone,
@@ -39,10 +35,8 @@ exports.register = async (req, res) => {
       };
     }
 
-    // Hash password before saving (handled by the User model pre-save hook)
     await user.save();
 
-    // Send OTP via WhatsApp using Fonnte
     await sendWhatsAppOTP(phone, otp);
 
     res.status(200).json({ message: "OTP sent successfully" });
@@ -52,33 +46,24 @@ exports.register = async (req, res) => {
   }
 };
 
-// Other functions for verifyOTP and resendOTP
 exports.verifyOTP = async (req, res) => {
   try {
     const { phone, otp } = req.body;
 
-    // Find the user by phone number
     const user = await User.findOne({ phone });
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // Check if the OTP matches and is still valid
     if (user.otp.code !== otp || user.otp.expiresAt < new Date()) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    // Mark the user as verified
     user.isVerified = true;
-    user.otp = undefined; // Clear the OTP once verified
+    user.otp = undefined;
     await user.save();
 
-    // Generate a JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
-
-    res.status(200).json({ message: "User verified successfully", token });
+    res.status(200).json({ message: "User verified successfully" });
   } catch (error) {
     console.error("Error in verifying OTP:", error);
     res.status(500).json({ message: "Server error" });
@@ -89,30 +74,25 @@ exports.resendOTP = async (req, res) => {
   try {
     const { phone } = req.body;
 
-    // Find the user by phone number
     const user = await User.findOne({ phone });
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // If the user is already verified, there's no need to resend the OTP
     if (user.isVerified) {
       return res.status(400).json({ message: "User is already verified" });
     }
 
-    // Generate a new OTP
     const otp = generateOTP();
     const otpExpiry = new Date();
-    otpExpiry.setMinutes(otpExpiry.getMinutes() + 5); // OTP expires in 5 minutes
+    otpExpiry.setMinutes(otpExpiry.getMinutes() + 5);
 
-    // Update the user's OTP
     user.otp = {
       code: otp,
       expiresAt: otpExpiry,
     };
     await user.save();
 
-    // Send OTP via WhatsApp using Fonnte
     await sendWhatsAppOTP(phone, otp);
 
     res.status(200).json({ message: "OTP resent successfully" });
@@ -126,14 +106,12 @@ exports.login = async (req, res) => {
   try {
     const { phone, password } = req.body;
 
-    // Find the user by phone number
     const user = await User.findOne({ phone });
 
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // Check if user is locked
     if (user.isLocked()) {
       const lockUntil = new Date(user.lockUntil);
       return res.status(403).json({
@@ -141,15 +119,12 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check if the entered password matches the stored hashed password
     const isPasswordMatch = await user.matchPassword(password);
     if (!isPasswordMatch) {
-      // Increment failed login attempts
       user.failedLoginAttempts += 1;
 
       if (user.failedLoginAttempts >= 5) {
-        // Lock the user for 15 minutes
-        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
         await user.save();
         return res.status(403).json({
           message:
@@ -161,11 +136,9 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid password" });
     }
 
-    // Reset failed attempts on successful password validation
     user.failedLoginAttempts = 0;
     user.lockUntil = undefined;
 
-    // Generate and send OTP for login verification
     const otp = generateOTP();
     const otpExpiry = new Date();
     otpExpiry.setMinutes(otpExpiry.getMinutes() + 5);
@@ -176,7 +149,6 @@ exports.login = async (req, res) => {
     };
     await user.save();
 
-    // Send OTP via WhatsApp
     await sendWhatsAppOTP(phone, otp);
 
     res.status(200).json({
@@ -193,30 +165,25 @@ exports.verifyLoginOTP = async (req, res) => {
   try {
     const { phone, password, otp } = req.body;
 
-    // Find the user by phone number
     const user = await User.findOne({ phone });
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // Verify password again
     const isPasswordMatch = await user.matchPassword(password);
     if (!isPasswordMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Check if the OTP matches and is still valid
     if (user.otp.code !== otp || user.otp.expiresAt < new Date()) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    // Clear the OTP
     user.otp = undefined;
     await user.save();
 
-    // Generate a JWT token
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: "1d",
     });
 
     res.status(200).json({
@@ -235,19 +202,16 @@ exports.resendLoginOTP = async (req, res) => {
   try {
     const { phone, password } = req.body;
 
-    // Find the user by phone number
     const user = await User.findOne({ phone });
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // Verify password
     const isPasswordMatch = await user.matchPassword(password);
     if (!isPasswordMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Generate new OTP
     const otp = generateOTP();
     const otpExpiry = new Date();
     otpExpiry.setMinutes(otpExpiry.getMinutes() + 5);
@@ -258,7 +222,6 @@ exports.resendLoginOTP = async (req, res) => {
     };
     await user.save();
 
-    // Send OTP via WhatsApp
     await sendWhatsAppOTP(phone, otp);
 
     res.status(200).json({ message: "Login OTP resent successfully" });
@@ -277,6 +240,33 @@ exports.getUserProfile = async (req, res) => {
     res.status(200).json(user);
   } catch (error) {
     console.error("Error fetching user profile:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    const decoded = jwt.decode(token);
+    if (!decoded) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    const expiration = new Date(decoded.exp * 1000);
+
+    const blacklistedToken = new BlacklistedToken({
+      token,
+      expiresAt: expiration,
+    });
+    await blacklistedToken.save();
+
+    res.status(200).json({ message: "Logout successful" });
+  } catch (error) {
+    console.error("Logout error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

@@ -1,6 +1,7 @@
 // backend/middleware/authMiddleware.js
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const checkBlacklist = require("./blacklistedMiddleware");
 
 const protect = async (req, res, next) => {
   try {
@@ -17,9 +18,11 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ message: "Not authorized, no token" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.userId).select("-otp");
-    next();
+    await checkBlacklist(req, res, async () => {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = await User.findById(decoded.userId).select("-otp");
+      next();
+    });
   } catch (error) {
     console.error("Auth middleware error:", error);
     res.status(401).json({ message: "Not authorized, token failed" });

@@ -119,5 +119,5 @@ router.post(
 );
 
 router.get("/user-profile", protect, authController.getUserProfile);
-
+router.post("/logout", protect, authController.logout);
 module.exports = router;

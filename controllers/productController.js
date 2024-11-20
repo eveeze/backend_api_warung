@@ -1,9 +1,6 @@
 // backend\controllers\productController.js
 const Product = require("../models/Product");
-const PDFDocument = require("pdfkit");
-const fs = require("fs");
-const path = require("path");
-// Get all products with optional filters
+// get all products
 exports.getAllProducts = async (req, res) => {
   try {
     const {
@@ -22,21 +19,17 @@ exports.getAllProducts = async (req, res) => {
       limit = 10,
     } = req.query;
 
-    // Build query
     let query = {};
 
-    // Filter by multiple IDs if provided
     if (ids) {
       const idArray = ids.split(",");
       query._id = { $in: idArray };
     }
 
-    // Category filter
     if (category) {
       query.category = category;
     }
 
-    // Search by name and description
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -44,14 +37,12 @@ exports.getAllProducts = async (req, res) => {
       ];
     }
 
-    // Stock range filter
     if (minStock || maxStock) {
       query.stock = {};
       if (minStock) query.stock.$gte = parseInt(minStock);
       if (maxStock) query.stock.$lte = parseInt(maxStock);
     }
 
-    // Producer price range filter
     if (minProducerPrice || maxProducerPrice) {
       query.producerPrice = {};
       if (minProducerPrice)
@@ -60,22 +51,18 @@ exports.getAllProducts = async (req, res) => {
         query.producerPrice.$lte = parseFloat(maxProducerPrice);
     }
 
-    // Sale price range filter
     if (minSalePrice || maxSalePrice) {
       query.salePrice = {};
       if (minSalePrice) query.salePrice.$gte = parseFloat(minSalePrice);
       if (maxSalePrice) query.salePrice.$lte = parseFloat(maxSalePrice);
     }
 
-    // Status filter
     if (status) {
       query.status = status;
     }
 
-    // Base query with category population
     let productsQuery = Product.find(query).populate("category");
 
-    // Multi-level sorting
     if (sort) {
       const sortCriteria = {};
       sort.split(",").forEach((field) => {
@@ -85,17 +72,14 @@ exports.getAllProducts = async (req, res) => {
       productsQuery = productsQuery.sort(sortCriteria);
     }
 
-    // Pagination calculations
     const skip = (page - 1) * limit;
     productsQuery = productsQuery.skip(skip).limit(parseInt(limit));
 
-    // Execute query and count total documents
     const [products, total] = await Promise.all([
       productsQuery.exec(),
       Product.countDocuments(query),
     ]);
 
-    // Enhanced pagination metadata
     res.status(200).json({
       products,
       pagination: {
@@ -259,4 +243,3 @@ exports.searchProducts = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
