@@ -1,5 +1,6 @@
 // backend/controllers/categoryController.js
 const Category = require("../models/Category");
+const Product = require("../models/Product");
 
 exports.getAllCategories = async (req, res) => {
   try {
@@ -23,6 +24,20 @@ exports.getCategoryById = async (req, res) => {
   }
 };
 
+exports.getProductsByCategory = async (req, res) => {
+  try {
+    const products = await Product.find({ category: req.params.id });
+    if (products.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Tidak ada produk ditemukan pada category ini " });
+    }
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("error fetching product berdasarkan kategori : ", error);
+    res.status(500).json({ message: "INTERNAL SERVER ERROR" });
+  }
+};
 exports.createCategory = async (req, res) => {
   try {
     const newCategory = new Category(req.body);

@@ -2,9 +2,7 @@ const express = require("express");
 const { body, param, query } = require("express-validator");
 const router = express.Router();
 const productController = require("../controllers/productController");
-const validateRequest = require("../middleware/validateRequest"); // Import middleware
-
-// Aturan validasi untuk membuat atau memperbarui produk
+const validateRequest = require("../middleware/validateRequest");
 const productValidationRules = [
   body("name").notEmpty().withMessage("Product name is required"),
   body("stock")
@@ -23,10 +21,12 @@ const productValidationRules = [
     .optional()
     .isIn(["active", "inactive"])
     .withMessage("Status must be 'active' or 'inactive'"),
+  body("imageURl")
+    .optional()
+    .isURL()
+    .withMessage("Invalid url format for image"),
   body("category").notEmpty().withMessage("Category is required"),
 ];
-
-// Definisikan endpoint `/low-stock` dan `/search` di atas rute `/:id`
 
 router.get(
   "/search",
@@ -35,7 +35,6 @@ router.get(
   productController.searchProducts
 );
 
-// Routes untuk operasi CRUD dengan validasi
 router.get(
   "/",
   [

@@ -1,6 +1,8 @@
 // backend\controllers\productController.js
 const Product = require("../models/Product");
-
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
+const path = require("path");
 // Get all products with optional filters
 exports.getAllProducts = async (req, res) => {
   try {
@@ -8,9 +10,14 @@ exports.getAllProducts = async (req, res) => {
       ids,
       category,
       search,
-      sortStock,
       minStock,
       maxStock,
+      minProducerPrice,
+      maxProducerPrice,
+      minSalePrice,
+      maxSalePrice,
+      status,
+      sort = "stock:asc",
       page = 1,
       limit = 10,
     } = req.query;
@@ -29,9 +36,12 @@ exports.getAllProducts = async (req, res) => {
       query.category = category;
     }
 
-    // Search by name
+    // Search by name and description
     if (search) {
-      query.name = { $regex: search, $options: "i" };
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
     }
 
     // Stock range filter
@@ -41,32 +51,60 @@ exports.getAllProducts = async (req, res) => {
       if (maxStock) query.stock.$lte = parseInt(maxStock);
     }
 
-    // Create base query
-    let productsQuery = Product.find(query).populate("category");
-
-    // Apply sorting if specified
-    if (sortStock === "asc") {
-      productsQuery = productsQuery.sort({ stock: 1 });
-    } else if (sortStock === "desc") {
-      productsQuery = productsQuery.sort({ stock: -1 });
+    // Producer price range filter
+    if (minProducerPrice || maxProducerPrice) {
+      query.producerPrice = {};
+      if (minProducerPrice)
+        query.producerPrice.$gte = parseFloat(minProducerPrice);
+      if (maxProducerPrice)
+        query.producerPrice.$lte = parseFloat(maxProducerPrice);
     }
 
-    // Apply pagination
+    // Sale price range filter
+    if (minSalePrice || maxSalePrice) {
+      query.salePrice = {};
+      if (minSalePrice) query.salePrice.$gte = parseFloat(minSalePrice);
+      if (maxSalePrice) query.salePrice.$lte = parseFloat(maxSalePrice);
+    }
+
+    // Status filter
+    if (status) {
+      query.status = status;
+    }
+
+    // Base query with category population
+    let productsQuery = Product.find(query).populate("category");
+
+    // Multi-level sorting
+    if (sort) {
+      const sortCriteria = {};
+      sort.split(",").forEach((field) => {
+        const [key, order] = field.split(":");
+        sortCriteria[key] = order === "desc" ? -1 : 1;
+      });
+      productsQuery = productsQuery.sort(sortCriteria);
+    }
+
+    // Pagination calculations
     const skip = (page - 1) * limit;
     productsQuery = productsQuery.skip(skip).limit(parseInt(limit));
 
-    // Execute query
-    const products = await productsQuery.exec();
+    // Execute query and count total documents
+    const [products, total] = await Promise.all([
+      productsQuery.exec(),
+      Product.countDocuments(query),
+    ]);
 
-    // Get total count for pagination
-    const total = await Product.countDocuments(query);
-
+    // Enhanced pagination metadata
     res.status(200).json({
       products,
       pagination: {
         total,
         page: parseInt(page),
-        pages: Math.ceil(total / limit),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPreviousPage: page > 1,
       },
     });
   } catch (error) {
@@ -210,7 +248,10 @@ exports.searchProducts = async (req, res) => {
   try {
     const { query } = req.query;
     const products = await Product.find({
-      name: { $regex: query, $options: "i" },
+      $or: [
+        { name: { $regex: query, $options: "i" } },
+        { description: { $regex: query, $options: "i" } },
+      ],
     }).populate("category");
     res.status(200).json(products);
   } catch (error) {
@@ -218,3 +259,4 @@ exports.searchProducts = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+

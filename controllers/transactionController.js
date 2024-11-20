@@ -31,6 +31,7 @@ exports.purchaseProducts = async (req, res) => {
       totalCost += product.salePrice * quantity;
       productDetails.push({ product: productId, quantity, profit });
       product.stock -= quantity;
+      product.sold += quantity;
       await product.save();
     }
 

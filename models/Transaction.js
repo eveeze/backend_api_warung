@@ -27,10 +27,10 @@ const transactionSchema = new mongoose.Schema(
     debt: { type: Number },
     qrisImageUrl: { type: String },
     qrisPaymentUrl: { type: String },
-    orderId: { type: String }, // New field for QRIS order ID
+    orderId: { type: String },
     paymentStatus: {
       type: String,
-      enum: ["pending", "completed" , "failed"],
+      enum: ["pending", "completed", "failed"],
       default: "pending",
     },
     date: { type: Date, default: Date.now },

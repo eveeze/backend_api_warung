@@ -5,7 +5,7 @@ const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     stock: { type: Number, required: true },
-    minStock: { type: Number, required: true }, // Minimum stock level
+    minStock: { type: Number, required: true },
     producerPrice: { type: Number, required: true },
     salePrice: { type: Number, required: true },
     description: { type: String },
@@ -16,6 +16,7 @@ const productSchema = new mongoose.Schema(
       ref: "Category",
       required: true,
     },
+    sold: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
