@@ -4,31 +4,43 @@ const Restock = require("../models/Restock");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
-
+const moment = require("moment");
 exports.createRestock = async (req, res) => {
   try {
-    // Step 1: Get all low stock products
-    const lowStockProducts = await Product.find({
-      $expr: { $lte: ["$stock", "$minStock"] },
-    }).populate("category");
+    const { products } = req.body; // Admin input with custom requestedStock for each product
 
-    if (!lowStockProducts.length) {
-      return res.status(400).json({ message: "No low stock products found" });
+    // Validate that products array is provided
+    if (!products || !products.length) {
+      return res.status(400).json({ message: "No products provided" });
     }
 
-    // Step 2: Map low stock products and create restock data
-    const restockData = lowStockProducts.map((product) => ({
-      product: product._id,
-      requestedStock: product.minStock * 2, // Example restock amount, you can customize this
-      currentStock: product.stock,
-    }));
+    // Step 1: Validate and fetch each product
+    const restockData = [];
+    for (const productInput of products) {
+      const product = await Product.findById(productInput.productId).populate(
+        "category"
+      );
+      if (!product) {
+        return res
+          .status(404)
+          .json({ message: `Product ${productInput.productId} not found` });
+      }
 
-    // Step 3: Create restock entry in database with status 'pending'
+      restockData.push({
+        product: product._id,
+        requestedStock: productInput.requestedStock,
+        currentStock: product.stock,
+        name: product.name, // Store product name for PDF
+        category: product.category.name, // Store category name for PDF
+      });
+    }
+
+    // Step 2: Create restock entry in the database
     const restock = new Restock({ products: restockData, status: "pending" });
     await restock.save();
 
-    // Step 4: Generate PDF report
-    const doc = new PDFDocument();
+    // Step 3: Generate PDF report
+    const doc = new PDFDocument({ margin: 50 });
     const filePath = path.join(
       __dirname,
       `../reports/restock_report_${Date.now()}.pdf`
@@ -36,31 +48,139 @@ exports.createRestock = async (req, res) => {
     const writeStream = fs.createWriteStream(filePath);
 
     doc.pipe(writeStream);
-    doc.fontSize(20).text("Restock Report", { align: "center" });
-    doc.moveDown();
 
-    // Table Header
+    // Header
     doc
-      .fontSize(12)
-      .text("Product Name | Current Stock | Requested Stock | Category");
+      .fillColor("#333333")
+      .fontSize(26)
+      .text("Restock Report", { align: "center" })
+      .moveDown();
+
+    // Informasi Tambahan
+    doc
+      .fontSize(10)
+      .fillColor("#555555")
+      .text(`Date: ${moment().format("MMMM Do YYYY, h:mm:ss a")}`, {
+        align: "right",
+      })
+      .moveDown();
+
+    // Garis pemisah
+    doc
+      .strokeColor("#aaaaaa")
+      .lineWidth(1)
+      .moveTo(50, doc.y)
+      .lineTo(550, doc.y)
+      .stroke();
+
     doc.moveDown();
 
-    // Fill table with restock data
-    restock.products.forEach((item) => {
-      const product = lowStockProducts.find((p) => p._id.equals(item.product));
+    // Tabel dengan format yang lebih baik
+    const tableTop = doc.y;
+    const columnWidths = [200, 100, 100, 150];
+    const headers = [
+      "Nama Produk",
+      "Stok Sekarang",
+      "Stock Permintaan",
+      "Kategori",
+    ];
+
+    // Header Tabel
+    doc.fontSize(12).fillColor("black").font("Helvetica-Bold");
+    headers.forEach((header, i) => {
       doc.text(
-        `${product.name} | ${item.currentStock} | ${item.requestedStock} | ${product.category.name}`
+        header,
+        50 + columnWidths.slice(0, i).reduce((a, b) => a + b, 0),
+        tableTop,
+        {
+          width: columnWidths[i],
+          align: "left",
+        }
       );
-      doc.moveDown();
     });
+
+    doc.moveDown();
+
+    // Garis header
+    doc
+      .strokeColor("#aaaaaa")
+      .lineWidth(1)
+      .moveTo(50, doc.y)
+      .lineTo(550, doc.y)
+      .stroke()
+      .moveDown();
+
+    // Isi Tabel
+    doc.fontSize(10).fillColor("black").font("Helvetica");
+    restockData.forEach((item, index) => {
+      // Kolom Product Name
+      doc.text(item.name, 50, null, {
+        width: columnWidths[0],
+        align: "left",
+      });
+
+      // Kolom Current Stock
+      doc.text(item.currentStock.toString(), 50 + columnWidths[0], null, {
+        width: columnWidths[1],
+        align: "left",
+      });
+
+      // Kolom Requested Stock
+      doc.text(
+        item.requestedStock.toString(),
+        50 + columnWidths[0] + columnWidths[1],
+        null,
+        {
+          width: columnWidths[2],
+          align: "left",
+        }
+      );
+
+      // Kolom Category
+      doc.text(
+        item.category,
+        50 + columnWidths[0] + columnWidths[1] + columnWidths[2],
+        null,
+        {
+          width: columnWidths[3],
+          align: "left",
+        }
+      );
+
+      doc.moveDown();
+
+      // Tambahkan garis pemisah antar baris
+      if (index < restockData.length - 1) {
+        doc
+          .strokeColor("#dddddd")
+          .lineWidth(0.5)
+          .moveTo(50, doc.y)
+          .lineTo(550, doc.y)
+          .stroke();
+        doc.moveDown(0.5);
+      }
+    });
+
+    // Footer
+    doc
+      .moveDown()
+      .fontSize(8)
+      .fillColor("#888888")
+      .text("Generated by Inventory Management Warung Mbah Manto", {
+        align: "center",
+      });
 
     doc.end();
 
     writeStream.on("finish", () => {
+      const pdfUrl = `${req.protocol}://${req.get(
+        "host"
+      )}/download-report/${path.basename(filePath)}`;
+
       res.status(200).json({
         message: "Restock created and PDF generated",
         restockId: restock._id,
-        pdfPath: filePath,
+        pdfUrl,
       });
     });
   } catch (error) {
@@ -102,3 +222,32 @@ exports.completeRestock = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.getLowStockProducts = async (req, res) => {
+  try {
+    const lowStockProducts = await Product.find({
+      $expr: { $lte: ["$stock", "$minStock"] },
+    }).populate("category");
+
+    if (!lowStockProducts.length) {
+      return res.status(400).json({ message: "No low stock products found" });
+    }
+
+    res.status(200).json(lowStockProducts);
+  } catch (error) {
+    console.error("Error fetching low stock products:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.downloadReports = async (req, res) => {
+const filename = req.params.filename;
+  const filePath = path.join(__dirname, '../reports', filename);
+
+  fs.exists(filePath, (exists) => {
+    if (exists) {
+      res.sendFile(filePath); // Send the PDF file for download
+    } else {
+      res.status(404).json({ message: 'File not found' });
+    }
+  });};

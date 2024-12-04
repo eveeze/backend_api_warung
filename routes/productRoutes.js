@@ -57,12 +57,6 @@ router.get(
 );
 
 router.get(
-  "/low-stock",
-  validateRequest,
-  productController.getLowStockProducts
-);
-
-router.get(
   "/:id",
   param("id").isMongoId().withMessage("Invalid product ID"),
   validateRequest,

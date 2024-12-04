@@ -214,19 +214,6 @@ exports.getProductsByCategory = async (req, res) => {
   }
 };
 
-// Get low stock products
-exports.getLowStockProducts = async (req, res) => {
-  try {
-    const products = await Product.find({
-      $expr: { $lte: ["$stock", "$minStock"] },
-    }).populate("category");
-    res.status(200).json(products);
-  } catch (error) {
-    console.error("Error fetching low stock products:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
 // Search products
 exports.searchProducts = async (req, res) => {
   try {

@@ -270,3 +270,24 @@ exports.logout = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.validateToken = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("name phone");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "Token is valid",
+      user: {
+        name: user.name,
+        phone: user.phone,
+      },
+    });
+  } catch (error) {
+    console.error("Token validation error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
