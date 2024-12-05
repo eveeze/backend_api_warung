@@ -10,6 +10,12 @@ const { validateWebhookRequest } = require("../utils/midtransHelpers");
 exports.purchaseProducts = async (req, res) => {
   try {
     const { items, paymentType, amountPaid, buyerName } = req.body;
+    console.log("Purchase Request:", {
+      items,
+      paymentType,
+      amountPaid,
+      buyerName,
+    });
     let totalProfit = 0;
     let totalCost = 0;
     let productDetails = [];
