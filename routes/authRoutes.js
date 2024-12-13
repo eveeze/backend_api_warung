@@ -25,7 +25,7 @@ router.post(
       .withMessage("Password must be at least 6 characters long"),
     validateRequest,
   ],
-  authController.register
+  authController.register,
 );
 
 router.post(
@@ -43,7 +43,7 @@ router.post(
       .withMessage("OTP must be between 4 and 6 digits"),
     validateRequest,
   ],
-  authController.verifyOTP
+  authController.verifyOTP,
 );
 
 router.post(
@@ -56,7 +56,7 @@ router.post(
       .withMessage("Invalid phone number format"),
     validateRequest,
   ],
-  authController.resendOTP
+  authController.resendOTP,
 );
 
 router.post(
@@ -74,7 +74,7 @@ router.post(
       .withMessage("Password must be at least 6 characters long"),
     validateRequest,
   ],
-  authController.login
+  authController.login,
 );
 
 router.post(
@@ -97,7 +97,7 @@ router.post(
       .withMessage("OTP must be between 4 and 6 digits"),
     validateRequest,
   ],
-  authController.verifyLoginOTP
+  authController.verifyLoginOTP,
 );
 
 router.post(
@@ -115,9 +115,16 @@ router.post(
       .withMessage("Password must be at least 6 characters long"),
     validateRequest,
   ],
-  authController.resendLoginOTP
+  authController.resendLoginOTP,
 );
 
+router.delete(
+  "/user/:id",
+  param("id").isMongoId().withMessage("Invalid User id"),
+  protect,
+  authController.deleteUser,
+);
+router.get("/user", protect, authController.getAllUser);
 router.get("/user-profile", protect, authController.getUserProfile);
 router.post("/logout", protect, authController.logout);
 router.get("/validate-token", protect, authController.validateToken);

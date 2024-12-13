@@ -244,6 +244,34 @@ exports.getUserProfile = async (req, res) => {
   }
 };
 
+exports.getAllUser = async (req, res) => {
+  try {
+    const user = await User.find({});
+    if (!user) {
+      return res.status(404).json({ message: "Belum ada user sama sekali" });
+    }
+    res.status(200).json(user);
+    console.log(user);
+  } catch (error) {
+    console.error("error mengambil data user : ", error);
+    res.status(500).json({ message: "internal server error" });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const user = await User.findByIdAndDelete(id);
+    if (!user) {
+      return res.status(404).json({ message: "User tidak ditemukan" });
+    }
+    res.status(200).json({ message: "user berhasil dihapus" });
+  } catch (error) {
+    res.status(500).json({ message: "internal server error" });
+  }
+};
+
 exports.logout = async (req, res) => {
   try {
     const token = req.headers.authorization.split(" ")[1];
