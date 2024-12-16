@@ -183,9 +183,9 @@ exports.verifyLoginOTP = async (req, res) => {
     await user.save();
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
+      expiresIn: "30d",
     });
-
+    await user.saveToken(token);
     res.status(200).json({
       message: "Login successful",
       token,
@@ -282,6 +282,12 @@ exports.logout = async (req, res) => {
     const decoded = jwt.decode(token);
     if (!decoded) {
       return res.status(400).json({ message: "Invalid token" });
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (user) {
+      user.token = undefined;
+      await user.save();
     }
 
     const expiration = new Date(decoded.exp * 1000);
