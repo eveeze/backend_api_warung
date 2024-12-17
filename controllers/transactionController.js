@@ -60,9 +60,8 @@ exports.purchaseProducts = async (req, res) => {
         break;
 
       case "qris":
-        const { orderId, qrisUrl, qrisImageUrl } = await createQRISPayment(
-          totalCost
-        );
+        const { orderId, qrisUrl, qrisImageUrl } =
+          await createQRISPayment(totalCost);
         transactionData.qrisPaymentUrl = qrisUrl;
         transactionData.qrisImageUrl = qrisImageUrl;
         transactionData.paymentStatus = "pending";
@@ -155,9 +154,8 @@ exports.getTransactions = async (req, res) => {
     if (paymentType) filter.paymentType = paymentType;
     if (paymentStatus) filter.paymentStatus = paymentStatus;
 
-    const transactions = await Transaction.find(filter).populate(
-      "products.product"
-    );
+    const transactions =
+      await Transaction.find(filter).populate("products.product");
     res.status(200).json({ transactions });
   } catch (error) {
     console.error("Error fetching transactions:", error);
@@ -241,5 +239,33 @@ exports.checkQRISStatus = async (req, res) => {
   } catch (error) {
     console.error("Error checking QRIS status:", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getTransactionById = async (req, res) => {
+  try {
+    const transaksi = await Transaction.findById(req.params.id.trim());
+    if (!transaksi) {
+      return res
+        .status(404)
+        .json({ message: "error mengambil data transaksi :" });
+    }
+    res.status(200).json(transaksi);
+  } catch (error) {
+    console.error("error mengambil transaksi :", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+exports.deleteTransaction = async (req, res) => {
+  try {
+    const transaksi = await Transaction.findByIdAndDelete(req.params.id);
+    if (!transaksi) {
+      return res(404).json({ message: "transaksi tidak ditemukan" });
+    }
+    res.status(200).json({ message: "transaksi berhasil dihapus" });
+  } catch (error) {
+    console.error("error saat menghapus product: ", error);
+    res.status(500).json({ message: "internal server error" });
   }
 };
