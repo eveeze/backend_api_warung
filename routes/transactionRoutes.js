@@ -35,5 +35,7 @@ router.put(
   validateRequest,
   transactionController.updateTransactionStatus,
 );
+
+router.delete("/:id", validateRequest, transactionController.deleteTransaction);
 router.get("/debtors", validateRequest, transactionController.getDebtors);
 module.exports = router;
