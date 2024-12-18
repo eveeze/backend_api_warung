@@ -233,7 +233,9 @@ exports.resendLoginOTP = async (req, res) => {
 
 exports.getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("name");
+    const user = await User.findById(req.user._id).select(
+      "name phone isVerified createdAt",
+    );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
