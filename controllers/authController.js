@@ -230,11 +230,128 @@ exports.resendLoginOTP = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { phone } = req.body;
 
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const otp = generateOTP();
+    const otpExpiry = new Date();
+    otpExpiry.setMinutes(otpExpiry.getMinutes() + 5);
+
+    user.resetPasswordOTP = {
+      code: otp,
+      expiresAt: otpExpiry,
+    };
+    await user.save();
+
+    await sendWhatsAppOTP(phone, otp);
+
+    res.status(200).json({ message: "Password reset OTP sent successfully" });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.verifyResetPasswordOTP = async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (
+      !user.resetPasswordOTP ||
+      user.resetPasswordOTP.code !== otp ||
+      user.resetPasswordOTP.expiresAt < new Date()
+    ) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    // OTP verified, allow password reset
+    user.resetPasswordOTP = undefined;
+    user.isResetPasswordVerified = true; // Set flag bahwa OTP sudah diverifikasi
+    await user.save();
+
+    res.status(200).json({
+      message: "OTP verified successfully",
+      allowReset: true,
+    });
+  } catch (error) {
+    console.error("Verify reset password OTP error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { phone, newPassword, confirmPassword } = req.body;
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
+
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.isResetPasswordVerified) {
+      return res.status(403).json({
+        message: "Please verify OTP before resetting password",
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    user.isResetPasswordVerified = false; // Reset flag setelah password diubah
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.resendResetPasswordOTP = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const otp = generateOTP();
+    const otpExpiry = new Date();
+    otpExpiry.setMinutes(otpExpiry.getMinutes() + 5);
+
+    user.resetPasswordOTP = {
+      code: otp,
+      expiresAt: otpExpiry,
+    };
+    await user.save();
+
+    await sendWhatsAppOTP(phone, otp);
+
+    res.status(200).json({ message: "Reset password OTP resent successfully" });
+  } catch (error) {
+    console.error("Resend reset password OTP error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 exports.getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select(
-      "name phone isVerified createdAt",
+      "name phone isVerified createdAt"
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });

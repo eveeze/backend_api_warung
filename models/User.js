@@ -9,30 +9,36 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     otp: { code: String, expiresAt: Date },
     isVerified: { type: Boolean, default: false },
-    failedLoginAttempts: { type: Number, default: 0 }, // Track failed attempts
-    lockUntil: { type: Date }, // Lock user until this date if banned
+    failedLoginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date },
+    resetPasswordOTP: {
+      code: String,
+      expiresAt: Date,
+    },
+    isResetPasswordVerified: { type: Boolean, default: false },
+
     token: { type: String },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 // Add method to check if user is locked
-userSchema.methods.isLocked = function() {
+userSchema.methods.isLocked = function () {
   return this.lockUntil && this.lockUntil > Date.now();
 };
 
 // Compare entered password with hashed password
-userSchema.methods.matchPassword = async function(enteredPassword) {
+userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 // simpan token
 
-userSchema.methods.saveToken = async function(token) {
+userSchema.methods.saveToken = async function (token) {
   this.token = token;
   await this.save();
 };
 // Hash password before saving
-userSchema.pre("save", async function(next) {
+userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
     next();
   }

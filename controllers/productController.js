@@ -61,7 +61,7 @@ exports.getAllProducts = async (req, res) => {
       query.status = status;
     }
 
-    let productsQuery = Product.find(query).populate("category");
+    let productsQuery = Product.find(query).limit(limit).populate("category");
 
     if (sort) {
       const sortCriteria = {};
@@ -173,7 +173,7 @@ exports.updateProduct = async (req, res) => {
         imageUrl,
         category,
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
     if (!updatedProduct)
       return res.status(404).json({ message: "Product not found" });

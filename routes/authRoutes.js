@@ -25,7 +25,7 @@ router.post(
       .withMessage("Password must be at least 6 characters long"),
     validateRequest,
   ],
-  authController.register,
+  authController.register
 );
 
 router.post(
@@ -43,7 +43,7 @@ router.post(
       .withMessage("OTP must be between 4 and 6 digits"),
     validateRequest,
   ],
-  authController.verifyOTP,
+  authController.verifyOTP
 );
 
 router.post(
@@ -56,7 +56,7 @@ router.post(
       .withMessage("Invalid phone number format"),
     validateRequest,
   ],
-  authController.resendOTP,
+  authController.resendOTP
 );
 
 router.post(
@@ -74,7 +74,7 @@ router.post(
       .withMessage("Password must be at least 6 characters long"),
     validateRequest,
   ],
-  authController.login,
+  authController.login
 );
 
 router.post(
@@ -97,7 +97,7 @@ router.post(
       .withMessage("OTP must be between 4 and 6 digits"),
     validateRequest,
   ],
-  authController.verifyLoginOTP,
+  authController.verifyLoginOTP
 );
 
 router.post(
@@ -115,14 +115,79 @@ router.post(
       .withMessage("Password must be at least 6 characters long"),
     validateRequest,
   ],
-  authController.resendLoginOTP,
+  authController.resendLoginOTP
 );
 
 router.delete(
   "/user/:id",
   param("id").isMongoId().withMessage("Invalid User id"),
   protect,
-  authController.deleteUser,
+  authController.deleteUser
+);
+
+router.post(
+  "/forgot-password",
+  [
+    body("phone")
+      .notEmpty()
+      .withMessage("Phone is required")
+      .isMobilePhone("id-ID")
+      .withMessage("Invalid phone number format"),
+    validateRequest,
+  ],
+  authController.forgotPassword
+);
+
+router.post(
+  "/verify-reset-password-otp",
+  [
+    body("phone")
+      .notEmpty()
+      .withMessage("Phone is required")
+      .isMobilePhone("id-ID")
+      .withMessage("Invalid phone number format"),
+    body("otp")
+      .notEmpty()
+      .withMessage("OTP is required")
+      .isLength({ min: 4, max: 6 })
+      .withMessage("OTP must be between 4 and 6 digits"),
+    validateRequest,
+  ],
+  authController.verifyResetPasswordOTP
+);
+
+router.post(
+  "/reset-password",
+  [
+    body("phone")
+      .notEmpty()
+      .withMessage("Phone is required")
+      .isMobilePhone("id-ID")
+      .withMessage("Invalid phone number format"),
+    body("newPassword")
+      .notEmpty()
+      .withMessage("New password is required")
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters long"),
+    body("confirmPassword")
+      .notEmpty()
+      .withMessage("Confirm password is required"),
+    validateRequest,
+  ],
+  authController.resetPassword
+);
+
+router.post(
+  "/resend-reset-password-otp",
+  [
+    body("phone")
+      .notEmpty()
+      .withMessage("Phone is required")
+      .isMobilePhone("id-ID")
+      .withMessage("Invalid phone number format"),
+    validateRequest,
+  ],
+  authController.resendResetPasswordOTP
 );
 router.get("/user", protect, authController.getAllUser);
 router.get("/user-profile", protect, authController.getUserProfile);

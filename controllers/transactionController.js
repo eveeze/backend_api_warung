@@ -148,14 +148,16 @@ exports.updateTransactionStatus = async (req, res) => {
 
 exports.getTransactions = async (req, res) => {
   try {
-    const { paymentType, paymentStatus } = req.query;
+    const { paymentType, paymentStatus, limit } = req.query;
     let filter = {};
 
     if (paymentType) filter.paymentType = paymentType;
     if (paymentStatus) filter.paymentStatus = paymentStatus;
 
-    const transactions =
-      await Transaction.find(filter).populate("products.product");
+    const transactions = await Transaction.find(filter)
+      .sort({ date: "asc" })
+      .limit(limit)
+      .populate("products.product");
     res.status(200).json({ transactions });
   } catch (error) {
     console.error("Error fetching transactions:", error);
