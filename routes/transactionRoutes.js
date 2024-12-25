@@ -7,35 +7,35 @@ const validateRequest = require("../middleware/validateRequest");
 router.post(
   "/purchase",
   validateRequest,
-  transactionController.purchaseProducts,
+  transactionController.purchaseProducts
 );
 router.get(
   "/profit-today",
   validateRequest,
-  transactionController.getTodayProfit,
+  transactionController.getTodayProfit
 );
 router.post(
   "/qris-webhook",
   validateRequest,
-  transactionController.qrisWebhook,
+  transactionController.qrisWebhook
 );
 router.get(
   "/qris-status/:orderId",
   validateRequest,
-  transactionController.checkQRISStatus,
+  transactionController.checkQRISStatus
 );
 router.get("/", validateRequest, transactionController.getTransactions);
 router.get(
   "/detail/:id",
   validateRequest,
-  transactionController.getTransactionById,
+  transactionController.getTransactionById
 );
 router.put(
   "/update-status",
   validateRequest,
-  transactionController.updateTransactionStatus,
+  transactionController.updateTransactionStatus
 );
-
+router.put("/update", validateRequest, transactionController.updateTransaction);
 router.delete("/:id", validateRequest, transactionController.deleteTransaction);
 router.get("/debtors", validateRequest, transactionController.getDebtors);
 module.exports = router;

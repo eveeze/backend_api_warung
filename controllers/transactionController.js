@@ -60,8 +60,9 @@ exports.purchaseProducts = async (req, res) => {
         break;
 
       case "qris":
-        const { orderId, qrisUrl, qrisImageUrl } =
-          await createQRISPayment(totalCost);
+        const { orderId, qrisUrl, qrisImageUrl } = await createQRISPayment(
+          totalCost
+        );
         transactionData.qrisPaymentUrl = qrisUrl;
         transactionData.qrisImageUrl = qrisImageUrl;
         transactionData.paymentStatus = "pending";
@@ -164,7 +165,47 @@ exports.getTransactions = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+exports.updateTransaction = async (req, res) => {
+  try {
+    const {
+      transactionId,
+      paymentType,
+      paymentStatus,
+      totalCost,
+      buyerName,
+      debt,
+    } = req.body;
 
+    // Validate input
+    if (!transactionId) {
+      return res.status(400).json({ message: "Transaction ID is required" });
+    }
+
+    // Find the transaction
+    const transaction = await Transaction.findById(transactionId);
+    if (!transaction) {
+      return res.status(404).json({ message: "Transaction not found" });
+    }
+
+    // Update transaction fields
+    if (paymentType) transaction.paymentType = paymentType;
+    if (paymentStatus) transaction.paymentStatus = paymentStatus;
+    if (totalCost !== undefined) transaction.totalCost = totalCost;
+    if (buyerName) transaction.buyerName = buyerName;
+    if (debt !== undefined) transaction.debt = debt;
+
+    // Save updated transaction
+    await transaction.save();
+
+    res.status(200).json({
+      message: "Transaction updated successfully",
+      transaction,
+    });
+  } catch (error) {
+    console.error("Error updating transaction:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 exports.getDebtors = async (req, res) => {
   try {
     const debtors = await Transaction.find({
