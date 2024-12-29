@@ -60,9 +60,8 @@ exports.purchaseProducts = async (req, res) => {
         break;
 
       case "qris":
-        const { orderId, qrisUrl, qrisImageUrl } = await createQRISPayment(
-          totalCost
-        );
+        const { orderId, qrisUrl, qrisImageUrl } =
+          await createQRISPayment(totalCost);
         transactionData.qrisPaymentUrl = qrisUrl;
         transactionData.qrisImageUrl = qrisImageUrl;
         transactionData.paymentStatus = "pending";
@@ -156,7 +155,7 @@ exports.getTransactions = async (req, res) => {
     if (paymentStatus) filter.paymentStatus = paymentStatus;
 
     const transactions = await Transaction.find(filter)
-      .sort({ date: "asc" })
+      .sort({ date: "desc" })
       .limit(limit)
       .populate("products.product");
     res.status(200).json({ transactions });
